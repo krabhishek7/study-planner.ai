@@ -17,6 +17,9 @@ def create_app():
     
     return app
 
+# For deployment platforms (Gunicorn, etc.)
+app = create_app()
+
 if __name__ == '__main__':
     # Check if required environment variables are set
     required_vars = ['SECRET_KEY', 'OPENAI_API_KEY']
