@@ -50,9 +50,12 @@ if __name__ == '__main__':
     print("\n🌐 Open http://localhost:5001 in your browser")
     print("⏹️  Press Ctrl+C to stop the server")
     
+    # Get port from environment (Railway sets this) or default to 5001 for local dev
+    port = int(os.getenv('PORT', 5001))
+    
     # Run the Flask development server
     application.run(
-        debug=True,
+        debug=os.getenv('ENVIRONMENT') != 'production',
         host='0.0.0.0',
-        port=5001
+        port=port
     ) 
