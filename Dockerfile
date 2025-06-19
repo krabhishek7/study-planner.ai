@@ -1,4 +1,4 @@
-# Production Dockerfile for ArxivChat
+# Production Dockerfile for Study Planner.AI
 FROM python:3.10-slim
 
 # Set working directory
@@ -22,8 +22,8 @@ COPY . .
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Expose port (Railway will set this dynamically)
-EXPOSE $PORT
+# Railway provides the PORT environment variable
+# We don't need to EXPOSE it since Railway handles this automatically
 
-# Use simple Python startup script
-CMD ["python", "run.py"] 
+# Use gunicorn for production with dynamic port binding
+CMD gunicorn --bind 0.0.0.0:$PORT --workers 1 --timeout 120 run:app 
