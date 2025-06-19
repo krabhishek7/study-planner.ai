@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block title %}Calendar Sync - Study Planner.AI{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="h2 mb-3">
+            <i class="fas fa-sync-alt me-2"></i>Calendar Integration
+        </h1>
+        <p class="text-muted">Export your study schedule and sync with external calendar apps</p>
+    </div>
+</div>
+
+<!-- Export Options -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-download me-2"></i>Export Calendar</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Download your study schedule as a calendar file</p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary" onclick="exportCalendar('ical')">
+                        <i class="fas fa-calendar me-2"></i>Download .ics File
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="exportCalendar('google')">
+                        <i class="fab fa-google me-2"></i>Add to Google Calendar
+                    </button>
+                </div>
+                <small class="text-muted mt-2 d-block">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Export includes all tasks with due dates or scheduled times
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-rss me-2"></i>Live Calendar Feed</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Subscribe to a live feed that automatically updates</p>
+                <button class="btn btn-success w-100 mb-3" onclick="generateFeed()">
+                    <i class="fas fa-link me-2"></i>Generate Feed URL
+                </button>
+                
+                <div id="feedInstructions" style="display: none;">
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>Your Calendar Feed URL:</h6>
+                        <input type="text" class="form-control mb-2" id="feedUrl" readonly>
+                        <button class="btn btn-sm btn-outline-primary" onclick="copyFeedUrl()">
+                            <i class="fas fa-copy me-1"></i>Copy URL
+                        </button>
+                    </div>
+                </div>
+                
+                <small class="text-muted">
+                    <i class="fas fa-shield-alt me-1"></i>
+                    This creates a secure, read-only link to your schedule
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Setup Instructions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-question-circle me-2"></i>Setup Instructions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="text-center mb-3">
+                            <i class="fab fa-google fa-3x text-primary mb-2"></i>
+                            <h6>Google Calendar</h6>
+                        </div>
+                        <ol class="small">
+                            <li>Open Google Calendar</li>
+                            <li>Click "+" next to "Other calendars"</li>
+                            <li>Select "From URL"</li>
+                            <li>Paste your feed URL</li>
+                            <li>Click "Add calendar"</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="text-center mb-3">
+                            <i class="fab fa-microsoft fa-3x text-info mb-2"></i>
+                            <h6>Outlook</h6>
+                        </div>
+                        <ol class="small">
+                            <li>Go to Calendar view</li>
+                            <li>Click "Add calendar"</li>
+                            <li>Select "Subscribe from web"</li>
+                            <li>Paste your feed URL</li>
+                            <li>Click "Import"</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="text-center mb-3">
+                            <i class="fab fa-apple fa-3x text-dark mb-2"></i>
+                            <h6>Apple Calendar</h6>
+                        </div>
+                        <ol class="small">
+                            <li>Open Calendar app</li>
+                            <li>Go to File → "New Calendar Subscription"</li>
+                            <li>Paste your feed URL</li>
+                            <li>Click "Subscribe"</li>
+                            <li>Configure sync options</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Google Calendar Modal -->
+<div class="modal fade" id="googleCalendarModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fab fa-google me-2"></i>Add to Google Calendar</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">Click the links below to add individual tasks to your Google Calendar:</p>
+                <div id="googleCalendarLinks">
+                    <!-- Links will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Features Info -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-star me-2"></i>Calendar Integration Features</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-check-circle text-success me-2"></i>What's Included</h6>
+                        <ul class="list-unstyled">
+                            <li class="mb-2"><i class="fas fa-calendar me-2 text-muted"></i>All tasks with due dates</li>
+                            <li class="mb-2"><i class="fas fa-clock me-2 text-muted"></i>Scheduled study sessions</li>
+                            <li class="mb-2"><i class="fas fa-tag me-2 text-muted"></i>Subject categorization</li>
+                            <li class="mb-2"><i class="fas fa-check me-2 text-muted"></i>Completion status</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-sync me-2 text-info"></i>Live Feed Benefits</h6>
+                        <ul class="list-unstyled">
+                            <li class="mb-2"><i class="fas fa-arrow-rotate-right me-2 text-muted"></i>Automatically updates</li>
+                            <li class="mb-2"><i class="fas fa-mobile me-2 text-muted"></i>Works on all devices</li>
+                            <li class="mb-2"><i class="fas fa-bell me-2 text-muted"></i>Native notifications</li>
+                            <li class="mb-2"><i class="fas fa-eye-slash me-2 text-muted"></i>Private and secure</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Export calendar in different formats
+async function exportCalendar(format) {
+    try {
+        if (format === 'ical') {
+            // Download .ics file
+            window.location.href = `/export_calendar/ical`;
+            Utils.showToast('Calendar file downloaded!', 'success');
+        } else if (format === 'google') {
+            // Get Google Calendar links
+            const response = await fetch('/export_calendar/google');
+            const data = await response.json();
+            
+            if (data.success) {
+                const modal = new bootstrap.Modal(document.getElementById('googleCalendarModal'));
+                const linksContainer = document.getElementById('googleCalendarLinks');
+                
+                let html = '';
+                data.urls.forEach(item => {
+                    html += `
+                        <div class="mb-2">
+                            <a href="${item.url}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-plus me-2"></i>${item.task}
+                            </a>
+                        </div>
+                    `;
+                });
+                
+                linksContainer.innerHTML = html;
+                modal.show();
+            } else {
+                Utils.showToast('Error generating Google Calendar links', 'danger');
+            }
+        }
+    } catch (e) {
+        Utils.showToast('Error exporting calendar', 'danger');
+    }
+}
+
+// Generate calendar feed URL
+async function generateFeed() {
+    try {
+        const response = await fetch('/generate_calendar_feed');
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('feedUrl').value = data.feed_url;
+            document.getElementById('feedInstructions').style.display = 'block';
+            Utils.showToast('Calendar feed URL generated!', 'success');
+        } else {
+            Utils.showToast('Error generating feed URL', 'danger');
+        }
+    } catch (e) {
+        Utils.showToast('Error generating feed URL', 'danger');
+    }
+}
+
+// Copy feed URL to clipboard
+function copyFeedUrl() {
+    const feedUrl = document.getElementById('feedUrl');
+    feedUrl.select();
+    feedUrl.setSelectionRange(0, 99999); // For mobile
+    
+    try {
+        document.execCommand('copy');
+        Utils.showToast('Feed URL copied to clipboard!', 'success');
+    } catch (e) {
+        Utils.showToast('Please manually copy the URL', 'info');
+    }
+}
+</script>
+{% endblock %} 

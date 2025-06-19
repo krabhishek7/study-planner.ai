@@ -1,0 +1,13 @@
+✅ Database tables created successfully
+🚀 Starting Smart Study Planner...
+📋 Phase 1 MVP Features Available:
+   - User Registration & Login
+   - Subject Management
+   - Task Creation & Management
+   - AI-Powered Task Decomposition
+   - Calendar View
+
+🌐 Open http://localhost:5001 in your browser
+⏹️  Press Ctrl+C to stop the server
+ * Serving Flask app 'app'
+ * Debug mode: on

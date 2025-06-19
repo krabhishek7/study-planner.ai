@@ -1,0 +1,673 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Study Planner.AI{% endblock %}
+
+{% block content %}
+<!-- Welcome Header -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <div class="d-flex align-items-center justify-content-between flex-wrap">
+                <div>
+                    <h1 class="text-gradient mb-2">Welcome back, {{ current_user.username }}! 👋</h1>
+                    <p class="text-muted mb-0">Let's make today productive and achieve your study goals.</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addSubjectModal">
+                        <i class="fas fa-plus me-1"></i>Add Subject
+                    </button>
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                        <i class="fas fa-tasks me-1"></i>New Task
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Performance Stats -->
+<div class="row mb-4">
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="stat-card">
+            <div class="stat-number" id="tasksCompleted">-</div>
+            <div class="stat-label">Tasks Completed</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="stat-card">
+            <div class="stat-number" id="avgDifficulty">-</div>
+            <div class="stat-label">Avg. Difficulty</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="stat-card">
+            <div class="stat-number" id="reviewStreak">-</div>
+            <div class="stat-label">Review Streak</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="stat-card">
+            <div class="stat-number">{{ subjects|length }}</div>
+            <div class="stat-label">Active Subjects</div>
+        </div>
+    </div>
+</div>
+
+<!-- Motivational Coach Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card card-glass">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-heart me-2 text-danger"></i>
+                    <span class="fw-bold">Your Motivational Coach</span>
+                </div>
+                <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#dailyCheckInModal">
+                    <i class="fas fa-clipboard-check me-1"></i>Daily Check-in
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="motivationalMessages" class="mb-3">
+                    <!-- Messages will be loaded here -->
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-2">
+                            <i class="fas fa-chart-line me-1"></i>Progress This Week
+                        </h6>
+                        <div class="progress mb-2" style="height: 10px;">
+                            <div class="progress-bar" id="weeklyProgress" style="width: 0%"></div>
+                        </div>
+                        <small class="text-muted">Keep going! You're making great progress.</small>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-2">
+                            <i class="fas fa-fire me-1"></i>Study Streak
+                        </h6>
+                        <h4 class="fw-bold mb-0" id="studyStreak">0 days</h4>
+                        <small class="text-muted">Consistency is key to success!</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Review Today -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <i class="fas fa-undo me-2 text-info"></i>
+                <span class="fw-bold">Review Today</span>
+            </div>
+            <div class="card-body">
+                {% set review_tasks = recent_tasks|selectattr('next_review', 'defined')|selectattr('next_review', 'ne', None)|selectattr('next_review', 'le', now)|list %}
+                {% if review_tasks %}
+                    <div class="row">
+                        {% for task in review_tasks %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="task-card">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="subject-pill" style="background-color: {{ task.subject.color }};">
+                                        {{ task.subject.name }}
+                                    </span>
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>
+                                        {{ task.next_review.strftime('%H:%M') }}
+                                    </small>
+                                </div>
+                                <h6 class="mb-2">{{ task.title }}</h6>
+                                <button class="btn btn-success btn-sm w-100" onclick="TaskManager.reviewTask({{ task.id }}, this)">
+                                    <i class="fas fa-check me-1"></i>Mark as Reviewed
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-calendar-check fa-3x text-success mb-3"></i>
+                        <h5 class="text-muted">All caught up!</h5>
+                        <p class="text-muted">No reviews due today. Great job staying on track!</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Tasks -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-clock me-2 text-primary"></i>
+                    <span class="fw-bold">Recent Tasks</span>
+                </div>
+                <a href="{{ url_for('tasks') }}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-external-link-alt me-1"></i>View All
+                </a>
+            </div>
+            <div class="card-body">
+                {% if recent_tasks %}
+                    <div class="row">
+                        {% for task in recent_tasks %}
+                        <div class="col-lg-6 mb-3">
+                            <div class="task-card {{ 'completed' if task.status == 'completed' else 'in-progress' if task.status == 'in_progress' else '' }}">
+                                <div class="d-flex align-items-center justify-content-between mb-3">
+                                    <span class="subject-pill" style="background-color: {{ task.subject.color }};">
+                                        {{ task.subject.name }}
+                                    </span>
+                                    <div class="d-flex align-items-center gap-2">
+                                        {% if task.status == 'completed' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check me-1"></i>Completed
+                                            </span>
+                                        {% elif task.status == 'in_progress' %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-spinner me-1"></i>In Progress
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">
+                                                <i class="fas fa-clock me-1"></i>Pending
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <h6 class="fw-semibold mb-2">{{ task.title }}</h6>
+                                
+                                {% if task.description %}
+                                    <p class="text-muted small mb-3">{{ task.description[:100] }}{{ '...' if task.description|length > 100 else '' }}</p>
+                                {% endif %}
+                                
+                                <div class="d-flex align-items-center justify-content-between text-small text-muted mb-3">
+                                    <span>
+                                        <i class="fas fa-calendar me-1"></i>
+                                        {% if task.due_date %}
+                                            Due {{ task.due_date.strftime('%b %d') }}
+                                        {% else %}
+                                            No due date
+                                        {% endif %}
+                                    </span>
+                                    {% if task.scheduled_time %}
+                                        <span>
+                                            <i class="fas fa-clock me-1"></i>
+                                            Scheduled {{ task.scheduled_time.strftime('%b %d, %H:%M') }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="d-flex gap-2">
+                                    {% if task.status != 'completed' %}
+                                        <button class="btn btn-outline-info btn-sm flex-fill" onclick="TaskManager.autoScheduleTask({{ task.id }}, this)">
+                                            <i class="fas fa-magic me-1"></i>Auto-Schedule
+                                        </button>
+                                        <button class="btn btn-success btn-sm flex-fill" onclick="TaskManager.completeTask({{ task.id }})">
+                                            <i class="fas fa-check me-1"></i>Complete
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-tasks fa-4x text-muted mb-3"></i>
+                        <h4 class="text-muted mb-2">No tasks yet</h4>
+                        <p class="text-muted mb-4">Create your first task to get started with your study plan.</p>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                            <i class="fas fa-plus me-2"></i>Create Your First Task
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-bolt me-2 text-warning"></i>
+                <span class="fw-bold">Quick Actions</span>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <a href="{{ url_for('study_resources') }}" class="btn btn-outline-primary w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3">
+                            <i class="fas fa-book-open fa-2x mb-2"></i>
+                            <span class="fw-medium">Find Resources</span>
+                            <small class="text-muted">AI-powered learning materials</small>
+                        </a>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <a href="{{ url_for('calendar') }}" class="btn btn-outline-success w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3">
+                            <i class="fas fa-calendar-alt fa-2x mb-2"></i>
+                            <span class="fw-medium">View Calendar</span>
+                            <small class="text-muted">See your schedule</small>
+                        </a>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <a href="{{ url_for('sync_settings') }}" class="btn btn-outline-info w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3">
+                            <i class="fas fa-sync-alt fa-2x mb-2"></i>
+                            <span class="fw-medium">Sync Calendar</span>
+                            <small class="text-muted">Export to external apps</small>
+                        </a>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <button class="btn btn-outline-secondary w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3" data-bs-toggle="modal" data-bs-target="#dailyCheckInModal">
+                            <i class="fas fa-heart fa-2x mb-2"></i>
+                            <span class="fw-medium">Daily Check-in</span>
+                            <small class="text-muted">Track your wellbeing</small>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Subject Modal -->
+<div class="modal fade" id="addSubjectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Add New Subject
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_subject') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Subject Name *</label>
+                        <input type="text" class="form-control" id="name" name="name" required placeholder="e.g., Biology 101, Calculus, History">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" placeholder="Optional description of the subject"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="color" class="form-label">Color Theme</label>
+                        <div class="d-flex gap-2 align-items-center">
+                            <input type="color" class="form-control form-control-color" id="color" name="color" value="#3498db">
+                            <small class="text-muted">Choose a color to identify this subject</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Add Subject
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Task Modal -->
+<div class="modal fade" id="addTaskModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Add New Task
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_task') }}">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="title" class="form-label">Task Title *</label>
+                            <input type="text" class="form-control" id="title" name="title" required placeholder="e.g., Study for Biology midterm">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="subject_id" class="form-label">Subject *</label>
+                            <select class="form-select" id="subject_id" name="subject_id" required>
+                                <option value="">Select Subject</option>
+                                {% for subject in subjects %}
+                                    <option value="{{ subject.id }}">{{ subject.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" placeholder="Provide details about what needs to be studied, chapters covered, etc. This helps AI create better subtasks."></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="due_date" class="form-label">Due Date</label>
+                            <input type="date" class="form-control" id="due_date" name="due_date">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="difficulty" class="form-label">Difficulty Level</label>
+                            <select class="form-select" id="difficulty" name="difficulty">
+                                <option value="easy">Easy</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="hard">Hard</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        <strong>Tip:</strong> After creating the task, use the "AI Decompose" feature to automatically break it down into manageable study sessions!
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Add Task
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Daily Check-in Modal -->
+<div class="modal fade" id="dailyCheckInModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-clipboard-check me-2"></i>Daily Check-in
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="dailyCheckInForm">
+                    <div class="mb-3">
+                        <label for="tasksCompletedToday" class="form-label">Tasks completed today</label>
+                        <input type="number" class="form-control" id="tasksCompletedToday" min="0" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label for="studyTimeToday" class="form-label">Study time today (minutes)</label>
+                        <input type="number" class="form-control" id="studyTimeToday" min="0" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label for="stressLevel" class="form-label">How stressed do you feel? (1-5)</label>
+                        <div class="btn-group w-100" role="group" aria-label="Stress level">
+                            <input type="radio" class="btn-check" name="stressLevel" id="stress1" value="1">
+                            <label class="btn btn-outline-success" for="stress1">😊 1</label>
+                            
+                            <input type="radio" class="btn-check" name="stressLevel" id="stress2" value="2">
+                            <label class="btn btn-outline-info" for="stress2">🙂 2</label>
+                            
+                            <input type="radio" class="btn-check" name="stressLevel" id="stress3" value="3">
+                            <label class="btn btn-outline-warning" for="stress3">😐 3</label>
+                            
+                            <input type="radio" class="btn-check" name="stressLevel" id="stress4" value="4">
+                            <label class="btn btn-outline-danger" for="stress4">😰 4</label>
+                            
+                            <input type="radio" class="btn-check" name="stressLevel" id="stress5" value="5">
+                            <label class="btn btn-outline-danger" for="stress5">😫 5</label>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-save me-2"></i>Save Check-in
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Complete Task Modal -->
+<div class="modal fade" id="completeTaskModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-circle me-2"></i>Complete Task
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="completeTaskForm">
+                    <input type="hidden" id="completeTaskId">
+                    <div class="mb-3">
+                        <label for="difficultyRating" class="form-label">How difficult was this task? (1-5)</label>
+                        <div class="btn-group w-100" role="group" aria-label="Difficulty rating">
+                            <input type="radio" class="btn-check" name="difficultyRating" id="diff1" value="1">
+                            <label class="btn btn-outline-success" for="diff1">😄 Very Easy</label>
+                            
+                            <input type="radio" class="btn-check" name="difficultyRating" id="diff2" value="2">
+                            <label class="btn btn-outline-info" for="diff2">🙂 Easy</label>
+                            
+                            <input type="radio" class="btn-check" name="difficultyRating" id="diff3" value="3">
+                            <label class="btn btn-outline-warning" for="diff3">😐 Medium</label>
+                            
+                            <input type="radio" class="btn-check" name="difficultyRating" id="diff4" value="4">
+                            <label class="btn btn-outline-danger" for="diff4">😰 Hard</label>
+                            
+                            <input type="radio" class="btn-check" name="difficultyRating" id="diff5" value="5">
+                            <label class="btn btn-outline-danger" for="diff5">😫 Very Hard</label>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="fas fa-check me-2"></i>Complete Task
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Fetch and display performance stats
+async function fetchStats() {
+    try {
+        const response = await fetch('/user_stats');
+        const stats = await response.json();
+        if (stats.success) {
+            document.getElementById('tasksCompleted').textContent = stats.tasks_completed;
+            document.getElementById('avgDifficulty').textContent = stats.avg_difficulty || '-';
+            document.getElementById('reviewStreak').textContent = stats.review_streak || '-';
+        }
+    } catch (e) {
+        // Fallback: leave as '-'
+    }
+}
+
+// Fetch and display motivational messages
+async function fetchMotivationalMessages() {
+    try {
+        const response = await fetch('/motivational_messages');
+        const data = await response.json();
+        if (data.success) {
+            const container = document.getElementById('motivationalMessages');
+            container.innerHTML = '';
+            
+            data.messages.forEach(msg => {
+                const alertClass = {
+                    'achievement': 'alert-success',
+                    'encouragement': 'alert-info',
+                    'warning': 'alert-warning'
+                }[msg.type] || 'alert-info';
+                
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `alert ${alertClass} alert-dismissible fade show mb-2`;
+                messageDiv.innerHTML = `
+                    ${msg.message}
+                    <button type="button" class="btn-close" onclick="dismissMessage(${msg.id})" aria-label="Close"></button>
+                `;
+                container.appendChild(messageDiv);
+            });
+        }
+    } catch (e) {
+        console.error('Error fetching motivational messages:', e);
+    }
+}
+
+// Dismiss motivational message
+async function dismissMessage(messageId) {
+    try {
+        await fetch(`/mark_message_shown/${messageId}`, { method: 'POST' });
+    } catch (e) {
+        console.error('Error dismissing message:', e);
+    }
+}
+
+// Task Manager for dashboard actions
+const TaskManager = {
+    async reviewTask(taskId, buttonElement) {
+        Utils.showButtonLoading(buttonElement, 'Reviewing...');
+        try {
+            const response = await fetch(`/review_task/${taskId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await response.json();
+            if (result.success) {
+                Utils.showToast('Task reviewed! Next review scheduled.', 'success');
+                setTimeout(() => window.location.reload(), 1200);
+            } else {
+                Utils.showToast(result.error || 'Review failed.', 'error');
+            }
+        } catch (e) {
+            Utils.showToast('Error reviewing task.', 'error');
+        } finally {
+            Utils.hideButtonLoading(buttonElement);
+        }
+    },
+
+    async autoScheduleTask(taskId, buttonElement) {
+        Utils.showButtonLoading(buttonElement, 'Scheduling...');
+        try {
+            const response = await fetch(`/auto_schedule_task/${taskId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await response.json();
+            if (result.success) {
+                Utils.showToast('Task scheduled successfully!', 'success');
+                setTimeout(() => window.location.reload(), 1200);
+            } else {
+                Utils.showToast(result.error || 'Scheduling failed.', 'error');
+            }
+        } catch (e) {
+            Utils.showToast('Error scheduling task.', 'error');
+        } finally {
+            Utils.hideButtonLoading(buttonElement);
+        }
+    },
+
+    completeTask(taskId) {
+        document.getElementById('completeTaskId').value = taskId;
+        const modal = new bootstrap.Modal(document.getElementById('completeTaskModal'));
+        modal.show();
+    }
+};
+
+// Handle daily check-in form
+document.addEventListener('DOMContentLoaded', function() {
+    fetchStats();
+    fetchMotivationalMessages();
+    
+    const checkInForm = document.getElementById('dailyCheckInForm');
+    if (checkInForm) {
+        checkInForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const tasksCompleted = document.getElementById('tasksCompletedToday').value;
+            const studyTime = document.getElementById('studyTimeToday').value;
+            const stressLevel = document.querySelector('input[name="stressLevel"]:checked')?.value;
+            
+            try {
+                const response = await fetch('/record_daily_progress', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tasks_completed: parseInt(tasksCompleted),
+                        study_time_minutes: parseInt(studyTime),
+                        stress_level: stressLevel ? parseInt(stressLevel) : null
+                    })
+                });
+                
+                if (response.ok) {
+                    Utils.showToast('Daily check-in saved successfully!', 'success');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('dailyCheckInModal'));
+                    modal.hide();
+                    
+                    // Refresh motivational messages
+                    setTimeout(() => fetchMotivationalMessages(), 1000);
+                } else {
+                    Utils.showToast('Error saving check-in. Please try again.', 'error');
+                }
+            } catch (e) {
+                Utils.showToast('Error saving check-in. Please try again.', 'error');
+            }
+        });
+    }
+
+    // Handle complete task form
+    const completeForm = document.getElementById('completeTaskForm');
+    if (completeForm) {
+        completeForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const taskId = document.getElementById('completeTaskId').value;
+            const difficulty = document.querySelector('input[name="difficultyRating"]:checked')?.value;
+            
+            if (!difficulty) {
+                Utils.showToast('Please rate the difficulty before completing.', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/complete_task/${taskId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        difficulty_rating: parseInt(difficulty)
+                    })
+                });
+                
+                if (response.ok) {
+                    Utils.showToast('Task completed successfully!', 'success');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('completeTaskModal'));
+                    modal.hide();
+                    setTimeout(() => window.location.reload(), 1200);
+                } else {
+                    Utils.showToast('Error completing task. Please try again.', 'error');
+                }
+            } catch (e) {
+                Utils.showToast('Error completing task. Please try again.', 'error');
+            }
+        });
+    }
+
+    // Check if user has no subjects and show appropriate modal
+    const addTaskButton = document.querySelector('[data-bs-target="#addTaskModal"]');
+    if (addTaskButton) {
+        addTaskButton.addEventListener('click', function(e) {
+            const subjectSelect = document.getElementById('subject_id');
+            if (subjectSelect && subjectSelect.options.length <= 1) {
+                e.preventDefault();
+                Utils.showToast('Please add a subject first before creating tasks.', 'warning');
+                setTimeout(() => {
+                    const subjectModal = new bootstrap.Modal(document.getElementById('addSubjectModal'));
+                    subjectModal.show();
+                }, 500);
+            }
+        });
+    }
+});
+</script>
+{% endblock %} 

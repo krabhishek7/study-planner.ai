@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+
+{% block title %}Tasks - Study Planner.AI{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="h2 mb-3">
+            <i class="fas fa-tasks me-2"></i>Tasks
+        </h1>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+            <i class="fas fa-plus me-2"></i>Add Task
+        </button>
+    </div>
+</div>
+
+<!-- Review Today -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <i class="fas fa-undo me-2"></i>
+                <span class="fw-bold">Review Today</span>
+            </div>
+            <div class="card-body">
+                {% set review_tasks = tasks|selectattr('next_review', 'defined')|selectattr('next_review', 'ne', None)|selectattr('next_review', 'le', now)|list %}
+                {% if review_tasks %}
+                    <ul class="list-group list-group-flush">
+                        {% for task in review_tasks %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>{{ task.title }} <small class="text-muted">({{ task.subject.name }})</small></span>
+                            <button class="btn btn-outline-info btn-sm" onclick="reviewTask({{ task.id }})">
+                                <i class="fas fa-undo me-1"></i>Mark as Reviewed
+                            </button>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <span class="text-muted">No reviews due today. Keep up the good work! 🎉</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Performance Stats -->
+<div class="row mb-4">
+    <div class="col-md-4 mb-2">
+        <div class="card text-center">
+            <div class="card-body">
+                <h6 class="mb-1 text-muted">Tasks Completed</h6>
+                <h3 class="fw-bold mb-0" id="tasksCompleted">-</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-2">
+        <div class="card text-center">
+            <div class="card-body">
+                <h6 class="mb-1 text-muted">Avg. Difficulty</h6>
+                <h3 class="fw-bold mb-0" id="avgDifficulty">-</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-2">
+        <div class="card text-center">
+            <div class="card-body">
+                <h6 class="mb-1 text-muted">Review Streak</h6>
+                <h3 class="fw-bold mb-0" id="reviewStreak">-</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    {% if tasks %}
+        {% for task in tasks %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle me-2" style="width: 20px; height: 20px; background-color: {{ task.subject.color }};"></div>
+                        <small class="text-muted">{{ task.subject.name }}</small>
+                    </div>
+                    <span class="badge bg-{{ 'success' if task.difficulty == 'easy' else 'warning' if task.difficulty == 'medium' else 'danger' }}">
+                        {{ task.difficulty.title() }}
+                    </span>
+                </div>
+                
+                <div class="card-body">
+                    <h5 class="card-title">{{ task.title }}</h5>
+                    {% if task.description %}
+                        <p class="text-muted small">{{ task.description[:100] }}{% if task.description|length > 100 %}...{% endif %}</p>
+                    {% endif %}
+                    
+                    <div class="row text-center mb-3">
+                        {% if task.due_date %}
+                        <div class="col-6">
+                            <h6 class="mb-0">{{ task.due_date.strftime('%m/%d') }}</h6>
+                            <small class="text-muted">Due Date</small>
+                        </div>
+                        {% endif %}
+                        <div class="col-{% if task.due_date %}6{% else %}12{% endif %}">
+                            <h6 class="mb-0">{{ task.subtasks|length }}</h6>
+                            <small class="text-muted">Subtask{% if task.subtasks|length != 1 %}s{% endif %}</small>
+                        </div>
+                    </div>
+                    
+                    {% if task.is_decomposed %}
+                        <div class="alert alert-success py-2 mb-3">
+                            <i class="fas fa-robot me-2"></i>AI Decomposed into {{ task.subtasks|length }} subtasks
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="card-footer bg-transparent">
+                    <div class="btn-group w-100" role="group">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="autoScheduleTask({{ task.id }})">
+                            <i class="fas fa-calendar-alt me-1"></i>Auto-Schedule
+                        </button>
+                        <button class="btn btn-outline-success btn-sm" onclick="openCompleteModal({{ task.id }})">
+                            <i class="fas fa-check me-1"></i>Complete
+                        </button>
+                        {% if task.next_review and task.next_review <= now %}
+                        <button class="btn btn-outline-info btn-sm" onclick="reviewTask({{ task.id }})">
+                            <i class="fas fa-undo me-1"></i>Mark as Reviewed
+                        </button>
+                        {% endif %}
+                        {% if not task.is_decomposed %}
+                            <button class="btn btn-outline-info btn-sm" onclick="decomposeTask({{ task.id }})">
+                                <i class="fas fa-robot me-1"></i>AI Decompose
+                            </button>
+                        {% else %}
+                            <button class="btn btn-outline-primary btn-sm" onclick="viewSubtasks({{ task.id }})">
+                                <i class="fas fa-list me-1"></i>View Subtasks
+                            </button>
+                        {% endif %}
+                        <button class="btn btn-outline-primary btn-sm" onclick="editTask({{ task.id }})">
+                            <i class="fas fa-edit me-1"></i>Edit
+                        </button>
+                    </div>
+                    <div class="mt-2 small text-muted">
+                        {% if task.scheduled_time %}
+                        <span><i class="fas fa-clock me-1"></i>Scheduled: {{ task.scheduled_time.strftime('%Y-%m-%d %H:%M') }}</span><br>
+                        {% endif %}
+                        {% if task.next_review %}
+                        <span><i class="fas fa-undo me-1"></i>Next Review: {{ task.next_review.strftime('%Y-%m-%d') }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="fas fa-tasks fa-4x text-muted mb-4"></i>
+                <h3 class="text-muted mb-3">No Tasks Yet</h3>
+                <p class="text-muted mb-4">Create your first task and let AI help you break it down into manageable steps.</p>
+                {% if subjects %}
+                    <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                        <i class="fas fa-plus me-2"></i>Add Your First Task
+                    </button>
+                {% else %}
+                    <p class="text-muted mb-3">You need to add a subject first before creating tasks.</p>
+                    <a href="{{ url_for('subjects') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-book me-2"></i>Add Subject First
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Add Task Modal -->
+<div class="modal fade" id="addTaskModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Add New Task
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_task') }}">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="title" class="form-label">Task Title *</label>
+                            <input type="text" class="form-control" id="title" name="title" required placeholder="e.g., Study for Biology midterm">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="subject_id" class="form-label">Subject *</label>
+                            <select class="form-select" id="subject_id" name="subject_id" required>
+                                <option value="">Select Subject</option>
+                                {% for subject in subjects %}
+                                    <option value="{{ subject.id }}">{{ subject.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" placeholder="Provide details about what needs to be studied, chapters covered, etc. This helps AI create better subtasks."></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="due_date" class="form-label">Due Date</label>
+                            <input type="date" class="form-control" id="due_date" name="due_date">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="difficulty" class="form-label">Difficulty Level</label>
+                            <select class="form-select" id="difficulty" name="difficulty">
+                                <option value="easy">Easy</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="hard">Hard</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        <strong>Tip:</strong> After creating the task, use the "AI Decompose" feature to automatically break it down into manageable study sessions!
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Add Task
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Subtasks Modal -->
+<div class="modal fade" id="subtasksModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-list me-2"></i>Subtasks
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="subtasksList">
+                    <!-- Subtasks will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Complete Task Modal -->
+<div class="modal fade" id="completeTaskModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-check me-2"></i>Complete Task</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="completeTaskForm">
+                    <input type="hidden" id="completeTaskId">
+                    <div class="mb-3">
+                        <label for="difficultyRating" class="form-label">How difficult was this task?</label>
+                        <select class="form-select" id="difficultyRating" required>
+                            <option value="">Select rating</option>
+                            <option value="1">Very Easy</option>
+                            <option value="2">Easy</option>
+                            <option value="3">Medium</option>
+                            <option value="4">Hard</option>
+                            <option value="5">Very Hard</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">Mark as Completed</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function decomposeTask(taskId) {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    button.disabled = true;
+    
+    try {
+        const response = await fetch(`/decompose_task/${taskId}`, {
+            method: 'POST',
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            button.innerHTML = '<i class="fas fa-check"></i> Decomposed';
+            button.className = 'btn btn-outline-success btn-sm';
+            
+            // Show success message
+            alert(`Task successfully decomposed into ${result.subtasks.length} subtasks!`);
+            
+            // Reload the page to show updated status
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            button.innerHTML = originalText;
+            button.disabled = false;
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        button.innerHTML = originalText;
+        button.disabled = false;
+        alert('An error occurred while decomposing the task.');
+    }
+}
+
+async function viewSubtasks(taskId) {
+    try {
+        const response = await fetch(`/get_subtasks/${taskId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const subtasksList = document.getElementById('subtasksList');
+            subtasksList.innerHTML = '';
+            
+            result.subtasks.forEach((subtask, index) => {
+                const subtaskElement = document.createElement('div');
+                subtaskElement.className = 'card mb-2';
+                subtaskElement.innerHTML = `
+                    <div class="card-body">
+                        <h6 class="card-title">${index + 1}. ${subtask.title}</h6>
+                        <p class="card-text text-muted">${subtask.description}</p>
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>Estimated: ${subtask.estimated_time} minutes
+                        </small>
+                    </div>
+                `;
+                subtasksList.appendChild(subtaskElement);
+            });
+            
+            new bootstrap.Modal(document.getElementById('subtasksModal')).show();
+        } else {
+            alert('Error loading subtasks: ' + result.error);
+        }
+    } catch (error) {
+        alert('An error occurred while loading subtasks.');
+    }
+}
+
+function editTask(taskId) {
+    // TODO: Implement edit task functionality
+    alert('Edit task functionality coming soon!');
+}
+
+// Fetch and display performance stats
+async function fetchStats() {
+    try {
+        const response = await fetch('/user_stats');
+        const stats = await response.json();
+        if (stats.success) {
+            document.getElementById('tasksCompleted').textContent = stats.tasks_completed;
+            document.getElementById('avgDifficulty').textContent = stats.avg_difficulty || '-';
+            document.getElementById('reviewStreak').textContent = stats.review_streak || '-';
+        }
+    } catch (e) {
+        // Fallback: leave as '-'
+    }
+}
+
+document.addEventListener('DOMContentLoaded', fetchStats);
+</script>
+{% endblock %} 

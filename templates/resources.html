@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+
+{% block title %}Study Resources - Study Planner.AI{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="h2 mb-3">
+            <i class="fas fa-book-open me-2"></i>Study Resources
+        </h1>
+        <p class="text-muted">AI-powered educational content recommendations for your tasks and subjects</p>
+    </div>
+</div>
+
+<!-- Quick Search -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-search me-2"></i>Find Learning Resources</h5>
+            </div>
+            <div class="card-body">
+                <form id="resourceSearchForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="searchTopic" class="form-label">Topic or Subject</label>
+                            <input type="text" class="form-control" id="searchTopic" placeholder="e.g., Calculus, Biology, Physics">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="resourceType" class="form-label">Resource Type</label>
+                            <select class="form-select" id="resourceType">
+                                <option value="all">All Resources</option>
+                                <option value="videos">Video Tutorials</option>
+                                <option value="articles">Articles & Papers</option>
+                                <option value="practice">Practice Problems</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-2"></i>Search Resources
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Quick Tips</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Use specific topics for better results</li>
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Try different resource types</li>
+                    <li class="mb-0"><i class="fas fa-check text-success me-2"></i>Click on tasks below for AI suggestions</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search Results -->
+<div id="searchResults" class="row mb-4" style="display: none;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-list me-2"></i>Search Results</h5>
+            </div>
+            <div class="card-body" id="searchResultsContent">
+                <!-- Results will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Tasks Resources -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Get Resources for Your Tasks</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_tasks %}
+                    <div class="row">
+                        {% for task in recent_tasks %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card border">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ task.title }}</h6>
+                                    <p class="text-muted small mb-2">{{ task.subject.name }}</p>
+                                    <button class="btn btn-outline-primary btn-sm w-100" onclick="getTaskResources({{ task.id }})">
+                                        <i class="fas fa-robot me-2"></i>Get AI Resources
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-tasks fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No tasks yet</h5>
+                        <p class="text-muted">Create some tasks to get personalized resource recommendations!</p>
+                        <a href="{{ url_for('tasks') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Create Your First Task
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Popular Resources by Subject -->
+<div class="row">
+    {% if subjects %}
+        {% for subject in subjects %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header" style="background-color: {{ subject.color }}20; border-bottom: 2px solid {{ subject.color }};">
+                    <h6 class="mb-0" style="color: {{ subject.color }};">
+                        <i class="fas fa-book me-2"></i>{{ subject.name }}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary btn-sm" onclick="searchYouTube('{{ subject.name }} tutorial')">
+                            <i class="fab fa-youtube me-2"></i>YouTube Tutorials
+                        </button>
+                        <button class="btn btn-outline-info btn-sm" onclick="searchScholar('{{ subject.name }} fundamentals')">
+                            <i class="fas fa-graduation-cap me-2"></i>Academic Articles
+                        </button>
+                        <button class="btn btn-outline-success btn-sm" onclick="searchPractice('{{ subject.name }}')">
+                            <i class="fas fa-dumbbell me-2"></i>Practice Problems
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% endif %}
+</div>
+
+<!-- Task Resources Modal -->
+<div class="modal fade" id="taskResourcesModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-robot me-2"></i>AI Resource Recommendations</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="taskResourcesContent">
+                <!-- Resources will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Search for resources
+async function searchResources(topic, type = 'all') {
+    const resultsDiv = document.getElementById('searchResults');
+    const contentDiv = document.getElementById('searchResultsContent');
+    
+    resultsDiv.style.display = 'block';
+    contentDiv.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin fa-2x"></i><p class="mt-2">Finding resources...</p></div>';
+    
+    // Generate search links based on type
+    let content = '<div class="row">';
+    
+    if (type === 'all' || type === 'videos') {
+        content += `
+            <div class="col-md-4 mb-3">
+                <div class="card">
+                    <div class="card-header bg-danger text-white">
+                        <i class="fab fa-youtube me-2"></i>YouTube Videos
+                    </div>
+                    <div class="card-body">
+                        <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(topic + ' tutorial')}" target="_blank" class="btn btn-outline-danger btn-sm mb-2 w-100">
+                            ${topic} Tutorial
+                        </a>
+                        <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(topic + ' explained')}" target="_blank" class="btn btn-outline-danger btn-sm mb-2 w-100">
+                            ${topic} Explained
+                        </a>
+                        <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(topic + ' examples')}" target="_blank" class="btn btn-outline-danger btn-sm w-100">
+                            ${topic} Examples
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (type === 'all' || type === 'articles') {
+        content += `
+            <div class="col-md-4 mb-3">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <i class="fas fa-graduation-cap me-2"></i>Academic Resources
+                    </div>
+                    <div class="card-body">
+                        <a href="https://scholar.google.com/scholar?q=${encodeURIComponent(topic)}" target="_blank" class="btn btn-outline-info btn-sm mb-2 w-100">
+                            Google Scholar
+                        </a>
+                        <a href="https://www.khanacademy.org/search?search_again=1&q=${encodeURIComponent(topic)}" target="_blank" class="btn btn-outline-info btn-sm mb-2 w-100">
+                            Khan Academy
+                        </a>
+                        <a href="https://www.coursera.org/search?query=${encodeURIComponent(topic)}" target="_blank" class="btn btn-outline-info btn-sm w-100">
+                            Coursera
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (type === 'all' || type === 'practice') {
+        content += `
+            <div class="col-md-4 mb-3">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <i class="fas fa-dumbbell me-2"></i>Practice & Exercises
+                    </div>
+                    <div class="card-body">
+                        <a href="https://www.google.com/search?q=${encodeURIComponent(topic + ' practice problems')}" target="_blank" class="btn btn-outline-success btn-sm mb-2 w-100">
+                            Practice Problems
+                        </a>
+                        <a href="https://www.google.com/search?q=${encodeURIComponent(topic + ' exercises')}" target="_blank" class="btn btn-outline-success btn-sm mb-2 w-100">
+                            Exercises
+                        </a>
+                        <a href="https://www.google.com/search?q=${encodeURIComponent(topic + ' quiz')}" target="_blank" class="btn btn-outline-success btn-sm w-100">
+                            Quizzes
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    content += '</div>';
+    contentDiv.innerHTML = content;
+}
+
+// Get AI resources for a specific task
+async function getTaskResources(taskId) {
+    try {
+        const response = await fetch(`/get_resources/${taskId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const modal = new bootstrap.Modal(document.getElementById('taskResourcesModal'));
+            const content = document.getElementById('taskResourcesContent');
+            
+            let html = '<div class="row">';
+            
+            // YouTube searches
+            if (data.resources.youtube_searches.length > 0) {
+                html += `
+                    <div class="col-md-6 mb-4">
+                        <h6><i class="fab fa-youtube text-danger me-2"></i>Video Tutorials</h6>
+                        <div class="list-group">
+                `;
+                data.resources.youtube_searches.forEach(link => {
+                    html += `
+                        <a href="${link.url}" target="_blank" class="list-group-item list-group-item-action">
+                            <i class="fas fa-play-circle me-2"></i>${link.term}
+                        </a>
+                    `;
+                });
+                html += '</div></div>';
+            }
+            
+            // Scholar searches
+            if (data.resources.scholar_searches.length > 0) {
+                html += `
+                    <div class="col-md-6 mb-4">
+                        <h6><i class="fas fa-graduation-cap text-info me-2"></i>Academic Articles</h6>
+                        <div class="list-group">
+                `;
+                data.resources.scholar_searches.forEach(link => {
+                    html += `
+                        <a href="${link.url}" target="_blank" class="list-group-item list-group-item-action">
+                            <i class="fas fa-external-link-alt me-2"></i>${link.topic}
+                        </a>
+                    `;
+                });
+                html += '</div></div>';
+            }
+            
+            html += '</div>';
+            
+            // Practice suggestions
+            if (data.resources.practice_suggestions.length > 0) {
+                html += `
+                    <div class="mt-3">
+                        <h6><i class="fas fa-dumbbell text-success me-2"></i>Practice Ideas</h6>
+                        <ul class="list-unstyled">
+                `;
+                data.resources.practice_suggestions.forEach(suggestion => {
+                    html += `<li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>${suggestion}</li>`;
+                });
+                html += '</ul></div>';
+            }
+            
+            content.innerHTML = html;
+            modal.show();
+        }
+    } catch (e) {
+        Utils.showToast('Error loading resources. Please try again.', 'danger');
+    }
+}
+
+// Quick search functions
+function searchYouTube(query) {
+    window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, '_blank');
+}
+
+function searchScholar(query) {
+    window.open(`https://scholar.google.com/scholar?q=${encodeURIComponent(query)}`, '_blank');
+}
+
+function searchPractice(subject) {
+    searchResources(subject, 'practice');
+}
+
+// Handle resource search form
+document.addEventListener('DOMContentLoaded', function() {
+    const searchForm = document.getElementById('resourceSearchForm');
+    if (searchForm) {
+        searchForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const topic = document.getElementById('searchTopic').value;
+            const type = document.getElementById('resourceType').value;
+            
+            if (topic.trim()) {
+                searchResources(topic.trim(), type);
+            }
+        });
+    }
+});
+</script>
+{% endblock %} 

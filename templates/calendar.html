@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}Calendar - Study Planner.AI{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="h2 mb-3">
+            <i class="fas fa-calendar me-2"></i>Study Calendar
+        </h1>
+    </div>
+</div>
+
+{% if tasks %}
+    <div class="row">
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-alt me-2"></i>Upcoming Tasks
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        {% for task in tasks|sort(attribute='due_date') %}
+                        <div class="timeline-item mb-3">
+                            <div class="d-flex">
+                                <div class="flex-shrink-0">
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center" 
+                                         style="width: 40px; height: 40px; background-color: {{ task.subject.color }}20; border: 2px solid {{ task.subject.color }};">
+                                        <i class="fas fa-tasks" style="color: {{ task.subject.color }};"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="mb-1">{{ task.title }}</h6>
+                                            <small class="text-muted">
+                                                <i class="fas fa-book me-1"></i>{{ task.subject.name }}
+                                            </small>
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="badge bg-primary mb-1">
+                                                {{ task.due_date.strftime('%b %d, %Y') }}
+                                            </div>
+                                            <br>
+                                            <span class="badge bg-{{ 'success' if task.difficulty == 'easy' else 'warning' if task.difficulty == 'medium' else 'danger' }}">
+                                                {{ task.difficulty.title() }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    {% if task.description %}
+                                        <p class="text-muted mt-2 mb-0 small">{{ task.description[:100] }}{% if task.description|length > 100 %}...{% endif %}</p>
+                                    {% endif %}
+                                    {% if task.is_decomposed %}
+                                        <div class="mt-2">
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-robot me-1"></i>{{ task.subtasks|length }} Subtasks
+                                            </span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Task Overview
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6>By Difficulty</h6>
+                        {% set easy_count = tasks|selectattr('difficulty', 'equalto', 'easy')|list|length %}
+                        {% set medium_count = tasks|selectattr('difficulty', 'equalto', 'medium')|list|length %}
+                        {% set hard_count = tasks|selectattr('difficulty', 'equalto', 'hard')|list|length %}
+                        
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="badge bg-success">Easy</span>
+                            <span>{{ easy_count }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="badge bg-warning">Medium</span>
+                            <span>{{ medium_count }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="badge bg-danger">Hard</span>
+                            <span>{{ hard_count }}</span>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="mb-3">
+                        <h6>By Subject</h6>
+                        {% set subjects_with_tasks = tasks|map(attribute='subject')|unique|list %}
+                        {% for subject in subjects_with_tasks %}
+                            {% set subject_tasks = tasks|selectattr('subject', 'equalto', subject)|list %}
+                            <div class="d-flex justify-content-between mb-1">
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle me-2" style="width: 12px; height: 12px; background-color: {{ subject.color }};"></div>
+                                    <span>{{ subject.name }}</span>
+                                </div>
+                                <span>{{ subject_tasks|length }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <hr>
+                    
+                    <div>
+                        <h6>AI Decomposition</h6>
+                        {% set decomposed_count = tasks|selectattr('is_decomposed', 'equalto', true)|list|length %}
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Decomposed Tasks</span>
+                            <span>{{ decomposed_count }}/{{ tasks|length }}</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-info" style="width: {{ (decomposed_count / tasks|length * 100) if tasks|length > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>This Week
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% set this_week_tasks = tasks|selectattr('due_date', 'defined')|selectattr('due_date', 'ne', None)|list %}
+                    {% set filtered_tasks = [] %}
+                    {% for task in this_week_tasks %}
+                        {% if (now - task.due_date).days >= -7 and (now - task.due_date).days <= 0 %}
+                            {% set _ = filtered_tasks.append(task) %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if filtered_tasks %}
+                        {% for task in filtered_tasks %}
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="rounded-circle me-2" style="width: 8px; height: 8px; background-color: {{ task.subject.color }};"></div>
+                            <div class="flex-grow-1">
+                                <small class="fw-medium">{{ task.title }}</small>
+                                <br>
+                                <small class="text-muted">Due {{ task.due_date.strftime('%a, %b %d') }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                            <p class="text-muted mb-0">No tasks due this week!</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <div class="text-center py-5">
+        <i class="fas fa-calendar-times fa-4x text-muted mb-4"></i>
+        <h3 class="text-muted mb-3">No Scheduled Tasks</h3>
+        <p class="text-muted mb-4">Add tasks with due dates to see them on your calendar.</p>
+        <a href="{{ url_for('tasks') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-plus me-2"></i>Add Tasks
+        </a>
+    </div>
+{% endif %}
+
+<style>
+.timeline-item {
+    position: relative;
+}
+
+.timeline-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 19px;
+    top: 50px;
+    width: 2px;
+    height: calc(100% - 10px);
+    background-color: #dee2e6;
+}
+</style>
+{% endblock %} 
